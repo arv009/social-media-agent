@@ -35,15 +35,18 @@ IG_MEDIA_METRICS = {
 
 class MetaClient:
     def __init__(self, access_token=None, page_id=None, ig_user_id=None, version=None, session=None):
-        self.token = access_token or os.getenv("META_PAGE_ACCESS_TOKEN")
-        self.page_id = page_id or os.getenv("META_PAGE_ID")
-        self.ig_user_id = ig_user_id or os.getenv("META_IG_USER_ID")
+        from ..connections import meta_credentials  # .env values, or the account connected in the app
+        creds = meta_credentials() or {}
+        self.token = access_token or creds.get("page_token")
+        self.page_id = page_id or creds.get("page_id")
+        self.ig_user_id = ig_user_id or creds.get("ig_user_id")
         self.version = version or os.getenv("META_GRAPH_VERSION", "v23.0")
         self.base = f"https://graph.facebook.com/{self.version}"
         self.http = session or requests.Session()
         self.skipped_metrics: set[str] = set()
         if not self.token:
-            raise ValueError("No Meta access token. Set META_PAGE_ACCESS_TOKEN in .env.")
+            raise ValueError("Facebook/Instagram isn't connected. Use Connect on the Connections page "
+                             "(or set META_PAGE_ACCESS_TOKEN in .env).")
 
     # ---------- low level ----------
     def _get(self, url, params=None):
@@ -186,6 +189,14 @@ class MetaClient:
     def reply_to_comment(self, comment_id: str, message: str, platform: str) -> str:
         path = f"{comment_id}/replies" if platform == "instagram" else f"{comment_id}/comments"
         return self._post(path, {"message": message})["id"]
+
+    # ---------- account overview (dashboard) ----------
+    def page_info(self) -> dict:
+        return self._get(f"{self.base}/{self.page_id}", {"fields": "id,name,followers_count,fan_count,link,picture"})
+
+    def instagram_info(self) -> dict:
+        return self._get(f"{self.base}/{self.ig_user_id}",
+                         {"fields": "id,username,name,followers_count,follows_count,media_count,profile_picture_url"})
 
     def fetch_all(self, max_posts: int = 200) -> pd.DataFrame:
         frames = []

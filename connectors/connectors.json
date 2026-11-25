@@ -17,9 +17,19 @@
     "description": "Facebook Page + Instagram Business: posts, metrics, comments, publish approved drafts.",
     "script": "connectors/meta_server.py",
     "enabled": true,
-    "requires_env": [
-      "META_PAGE_ACCESS_TOKEN"
-    ]
+    "requires_any": [
+      {
+        "requires_env": [
+          "META_PAGE_ACCESS_TOKEN"
+        ]
+      },
+      {
+        "requires_files": [
+          "secrets/meta.json"
+        ]
+      }
+    ],
+    "setup_hint": "connect Facebook & Instagram on the Connections page"
   },
   "google_drive": {
     "description": "Find and read brand assets, briefs and docs; upload files.",
@@ -27,7 +37,8 @@
     "enabled": true,
     "requires_files": [
       "secrets/google_token.json"
-    ]
+    ],
+    "setup_hint": "connect Google Drive on the Connections page"
   },
   "designer": {
     "description": "Makes on-brand post images locally from brand.json (no account needed).",
@@ -47,7 +58,8 @@
     ],
     "requires_files": [
       "secrets/canva_token.json"
-    ]
+    ],
+    "setup_hint": "connect Canva on the Connections page"
   },
   "buffer": {
     "description": "Schedule posts across LinkedIn, Facebook and Instagram.",

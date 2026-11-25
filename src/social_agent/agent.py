@@ -57,8 +57,10 @@ How to write a post:
 2. Write 3 clearly different variants for the requested platform.
 3. Call score_drafts with all variants (use media_type "image" if you will make a graphic), then \
 best_posting_times for the winner.
-4. Make the image: if the canva connector is available and has brand templates, use create_from_template; \
-otherwise use make_post_graphic. If canva is available, send_image_to_canva so the reviewer can polish it.
+4. Make the image with make_post_graphic, choosing the layout that fits: cover (first slide of a how-to), \
+list (3-5 tips or steps), question (a hook or question) or card (email/story style). If the canva connector \
+is available and has brand templates, create_from_template is also fine. If canva is available, \
+send_image_to_canva so the reviewer can polish it.
 5. Submit the best variant with submit_post_draft, including image_url (the image path, or the public image \
 URL for Instagram), design_link (Canva edit link, if any), the predicted engagement, suggested time, \
 and a one-line agent_notes explaining why it won. Then tell the user the draft number and summarize the \
@@ -98,14 +100,18 @@ class ConnectorHub:
         self._stack = AsyncExitStack()
 
     def _check(self, cfg: dict) -> str:
-        missing_env = [v for v in cfg.get("requires_env", []) if not os.getenv(v)]
-        missing_files = [f for f in cfg.get("requires_files", []) if not (ROOT / f).exists()]
-        parts = []
-        if missing_env:
-            parts.append(f"set {', '.join(missing_env)} in .env")
-        if missing_files:
-            parts.append(f"missing {', '.join(missing_files)}")
-        return "; ".join(parts)
+        """Empty string when a connector's requirements are met, else what's missing.
+        "requires_any" lists alternatives, e.g. a token in .env OR an account connected in the app."""
+        def problems(req: dict) -> list[str]:
+            missing_env = [v for v in req.get("requires_env", []) if not os.getenv(v)]
+            missing_files = [f for f in req.get("requires_files", []) if not (ROOT / f).exists()]
+            return ([f"set {', '.join(missing_env)}"] if missing_env else []) + \
+                   ([f"missing {', '.join(missing_files)}"] if missing_files else [])
+        base = problems(cfg)
+        alternatives = [problems(alt) for alt in cfg.get("requires_any", [])]
+        if alternatives and all(alternatives):
+            base.append(cfg.get("setup_hint") or " or ".join("; ".join(a) for a in alternatives))
+        return "; ".join(base)
 
     async def __aenter__(self):
         from dotenv import load_dotenv

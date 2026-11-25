@@ -27,6 +27,9 @@ def next_weekday(weekday: int, hour: int) -> str:
 
 DEMO = [
     dict(platform="linkedin", media_type="carousel", predicted_engagement=0.071,
+         graphic=dict(headline="5 lessons that doubled our reach", layout="list", label="LinkedIn tips",
+                      items=["Post 3x a week, not 7", "Lead with a story, not a pitch", "Carousels beat plain text",
+                             "Reply to every comment in the first hour", "Save links for the comments"]),
          suggested_time=next_weekday(1, 9),
          agent_notes="Personal story + question scored highest of 3 variants; Tue 9 AM is the best LinkedIn slot.",
          text=("Honestly, I used to think posting every day was the secret to growing on LinkedIn.\n\n"
@@ -35,14 +38,14 @@ DEMO = [
                "4. Reply to every comment in the first hour\n5. Save links for the comments\n\n"
                "Which one would you try first?\n\n#marketing #smallbusiness #linkedintips")),
     dict(platform="instagram", media_type="image", predicted_engagement=0.094,
-         graphic=("Meet the team behind every post", "A peek behind the scenes at our office", "bold"),
+         graphic=dict(headline="Meet the team behind every post", layout="question"),
          suggested_time=next_weekday(4, 19),
          agent_notes="Behind-the-scenes posts are the best Instagram topic for this account; evenings perform best.",
          text=("Behind the scenes at our office today ✨ Meet the team that plans every post you see here.\n\n"
                "What would you like to see more of? 👇\n\n#behindthescenes #smallbusiness #teamwork "
                "#marketing #contentcreator")),
     dict(platform="facebook", media_type="image", predicted_engagement=0.031,
-         graphic=("Free webinar: social media on a small budget", "Next Thursday, 7 PM. Register now.", "accent"),
+         graphic=dict(headline="Social media on a small budget", layout="cover"),
          suggested_time=next_weekday(2, 12),
          agent_notes="Event posts do slightly below average; midday Wednesday is the strongest Facebook slot.",
          text=("Join us for a free webinar next Thursday at 7 PM: \"Social media on a small budget\". "
@@ -66,8 +69,8 @@ def seed_demo() -> int:
         d = dict(d)
         text, notes = d.pop("text"), TAG + d.pop("agent_notes")
         if "graphic" in d:
-            headline, sub, style = d.pop("graphic")
-            path = graphics.make_post_graphic(headline, sub, d["platform"], style)
+            g = d.pop("graphic")
+            path = graphics.make_post_graphic(platform=d["platform"], **g)
             d["image_url"] = str(path.relative_to(ROOT))
         rq.add_draft(d.pop("platform"), text, kind="post", agent_notes=notes, **d)
     r = DEMO_REPLY

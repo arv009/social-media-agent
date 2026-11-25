@@ -1,17 +1,30 @@
 {
-  "name": "Your Brand",
-  "handle": "@yourbrand",
+  "name": "Arvin Marketing Pro",
+  "logo_text": ["ARVIN", "MARKETING PRO"],
+  "handle": "ArvinMarketingPro",
+  "website": "www.arvinmarketingpro.com",
   "colors": {
-    "primary": "#1F3A5F",
-    "accent": "#F2A541",
-    "background": "#FFFFFF",
+    "primary": "#050D31",
+    "accent": "#F1C21B",
+    "card": "#ECF0F1",
     "text_on_primary": "#FFFFFF",
-    "text_on_background": "#1A1A1A"
+    "text_on_card": "#0B1533",
+    "muted": "#8A93A6",
+    "link": "#2149C9"
   },
   "fonts": {
-    "headline": "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
-    "body": "/System/Library/Fonts/Supplemental/Arial.ttf"
+    "heavy": "assets/fonts/Poppins-ExtraBold.ttf",
+    "bold": "assets/fonts/Poppins-Bold.ttf",
+    "medium": "assets/fonts/Poppins-Medium.ttf",
+    "regular": "assets/fonts/Poppins-Regular.ttf",
+    "condensed": "assets/fonts/BebasNeue-Regular.ttf"
   },
-  "logo_path": null,
+  "logo_path": "assets/logo.png",
+  "layouts": {
+    "cover": "Carousel cover: huge gold uppercase headline, page number, gold half-circle with arrow. Use for the first slide of a how-to or tips post.",
+    "list": "Numbered list: gold label tag, bold white headline, 3-5 numbered rows. Use for tips, steps, checklists.",
+    "question": "Question/statement: tall condensed white uppercase headline with an underline. Use for hooks and questions.",
+    "card": "Email card: white card with headline, short body and a gold 'New Email Received' pill. Use for email-marketing or story-style posts."
+  },
   "voice": "Friendly, practical and encouraging. Short sentences. No jargon. Light use of emojis."
 }
