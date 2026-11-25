@@ -1,0 +1,64 @@
+{
+  "analytics": {
+    "description": "Post history and the ML model: insights, draft scoring, best posting times.",
+    "script": "connectors/analytics_server.py",
+    "enabled": true,
+    "requires_files": [
+      "data/processed/posts.csv",
+      "models/engagement_model.joblib"
+    ]
+  },
+  "review_queue": {
+    "description": "Saves drafts for human approval. The agent cannot approve.",
+    "script": "connectors/review_queue_server.py",
+    "enabled": true
+  },
+  "meta": {
+    "description": "Facebook Page + Instagram Business: posts, metrics, comments, publish approved drafts.",
+    "script": "connectors/meta_server.py",
+    "enabled": true,
+    "requires_env": [
+      "META_PAGE_ACCESS_TOKEN"
+    ]
+  },
+  "google_drive": {
+    "description": "Find and read brand assets, briefs and docs; upload files.",
+    "script": "connectors/google_drive_server.py",
+    "enabled": true,
+    "requires_files": [
+      "secrets/google_token.json"
+    ]
+  },
+  "designer": {
+    "description": "Makes on-brand post images locally from brand.json (no account needed).",
+    "script": "connectors/designer_server.py",
+    "enabled": true,
+    "requires_files": [
+      "brand.json"
+    ]
+  },
+  "canva": {
+    "description": "Brand templates, send images to Canva for editing, export PNGs.",
+    "script": "connectors/canva_server.py",
+    "enabled": true,
+    "requires_env": [
+      "CANVA_CLIENT_ID",
+      "CANVA_CLIENT_SECRET"
+    ],
+    "requires_files": [
+      "secrets/canva_token.json"
+    ]
+  },
+  "buffer": {
+    "description": "Schedule posts across LinkedIn, Facebook and Instagram.",
+    "enabled": false,
+    "status": "planned",
+    "notes": "Check whether Buffer's API is open to your account. Until then, Facebook scheduling goes through the meta connector."
+  },
+  "linkedin": {
+    "description": "LinkedIn company page posts, analytics and comments.",
+    "enabled": false,
+    "status": "planned",
+    "notes": "Needs LinkedIn Community Management API approval. Use CSV exports for analytics until then."
+  }
+}

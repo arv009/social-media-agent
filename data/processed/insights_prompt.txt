@@ -1,0 +1,35 @@
+What has worked for this account so far (from past post performance):
+
+Facebook:
+- Best media: video (+20% vs average); worst: none (-27%).
+- Best topic: tips (+19% vs average); worst: promotion (-30%).
+- Best tone: personal (+22% vs average); worst: promotional (-21%).
+- Best time of day: evening (+9% vs average); worst: morning (-12%).
+- Best day: Wed (+7% vs average); worst: Sun (-21%).
+- Posts with a question: +5% engagement vs without.
+- Posts with a call to action: +3% engagement vs without.
+- Posts with a link in the post: -17% engagement vs without.
+- Best hashtag count: 4-6.
+
+Instagram:
+- Best media: carousel (+22% vs average); worst: image (-16%).
+- Best topic: behind_the_scenes (+30% vs average); worst: promotion (-44%).
+- Best tone: personal (+29% vs average); worst: promotional (-39%).
+- Best time of day: midday (+17% vs average); worst: morning (-18%).
+- Best day: Fri (+25% vs average); worst: Mon (-25%).
+- Posts with a question: +17% engagement vs without.
+- Posts with a call to action: +4% engagement vs without.
+- Best hashtag count: 0.
+
+Linkedin:
+- Best media: video (+39% vs average); worst: none (-29%).
+- Best topic: tips (+27% vs average); worst: promotion (-40%).
+- Best tone: personal (+33% vs average); worst: promotional (-33%).
+- Best time of day: morning (+19% vs average); worst: evening (-18%).
+- Best day: Tue (+31% vs average); worst: Sun (-28%).
+- Posts with a question: -5% engagement vs without.
+- Posts with a call to action: -9% engagement vs without.
+- Posts with a link in the post: -31% engagement vs without.
+- Best hashtag count: 1-3.
+
+Use these patterns when writing new posts, but keep the content varied.

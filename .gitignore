@@ -1,0 +1,19 @@
+# secrets and local state
+.env
+secrets/
+data/review_queue.db
+.streamlit/secrets.toml
+
+# your own analytics exports
+data/raw/*
+!data/raw/.gitkeep
+
+# generated images
+data/exports/*
+!data/exports/.gitkeep
+
+# python / tooling
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+.DS_Store

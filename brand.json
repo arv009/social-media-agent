@@ -1,0 +1,17 @@
+{
+  "name": "Your Brand",
+  "handle": "@yourbrand",
+  "colors": {
+    "primary": "#1F3A5F",
+    "accent": "#F2A541",
+    "background": "#FFFFFF",
+    "text_on_primary": "#FFFFFF",
+    "text_on_background": "#1A1A1A"
+  },
+  "fonts": {
+    "headline": "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+    "body": "/System/Library/Fonts/Supplemental/Arial.ttf"
+  },
+  "logo_path": null,
+  "voice": "Friendly, practical and encouraging. Short sentences. No jargon. Light use of emojis."
+}

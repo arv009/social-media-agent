@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "marketing-analytics": {
+      "command": "/FULL/PATH/TO/social-media-agent/.venv/bin/python",
+      "args": ["/FULL/PATH/TO/social-media-agent/connectors/analytics_server.py"]
+    },
+    "marketing-review-queue": {
+      "command": "/FULL/PATH/TO/social-media-agent/.venv/bin/python",
+      "args": ["/FULL/PATH/TO/social-media-agent/connectors/review_queue_server.py"]
+    }
+  }
+}
