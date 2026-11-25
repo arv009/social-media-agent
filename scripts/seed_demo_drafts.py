@@ -12,7 +12,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from social_agent import graphics  # noqa: E402
 from social_agent import review_queue as rq  # noqa: E402
 
 TAG = "[demo] "
@@ -68,10 +67,8 @@ def seed_demo() -> int:
     for d in DEMO:
         d = dict(d)
         text, notes = d.pop("text"), TAG + d.pop("agent_notes")
-        if "graphic" in d:
-            g = d.pop("graphic")
-            path = graphics.make_post_graphic(platform=d["platform"], **g)
-            d["image_url"] = str(path.relative_to(ROOT))
+        if "graphic" in d:  # the graphic is created when the caption is approved
+            d["graphic_spec"] = d.pop("graphic")
         rq.add_draft(d.pop("platform"), text, kind="post", agent_notes=notes, **d)
     r = DEMO_REPLY
     rq.add_draft(r["platform"], r["reply_text"], kind="reply", reply_to_comment_id=r["comment_id"],

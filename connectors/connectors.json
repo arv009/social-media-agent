@@ -62,10 +62,13 @@
     "setup_hint": "connect Canva on the Connections page"
   },
   "buffer": {
-    "description": "Schedule posts across LinkedIn, Facebook and Instagram.",
-    "enabled": false,
-    "status": "planned",
-    "notes": "Check whether Buffer's API is open to your account. Until then, Facebook scheduling goes through the meta connector."
+    "description": "Buffer: connected channels, scheduled/sent posts and their analytics.",
+    "script": "connectors/buffer_server.py",
+    "enabled": true,
+    "requires_env": [
+      "BUFFER_API_KEY"
+    ],
+    "setup_hint": "add BUFFER_API_KEY (publish.buffer.com > Settings > API)"
   },
   "linkedin": {
     "description": "LinkedIn company page posts, analytics and comments.",

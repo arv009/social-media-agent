@@ -1,9 +1,14 @@
 """The human-in-the-loop review queue (a small SQLite database).
 
 The AI agent can ADD drafts and READ them. Only a human can approve or reject
-(through scripts/review.py or, later, the Streamlit page). Publishing tools
-refuse anything that isn't approved, so nothing goes public without you.
+(in the app's Review queue or scripts/review.py). Publishing tools refuse anything
+that isn't approved, so nothing goes public without you.
+
+Two approval steps for posts with a graphic:
+  pending (caption review) -> design_review (graphic made, review it) -> approved -> scheduled
+Posts without a graphic, and comment replies, go from pending straight to approved.
 """
+import json
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
@@ -11,7 +16,7 @@ from pathlib import Path
 
 DB_PATH = Path(__file__).resolve().parents[2] / "data" / "review_queue.db"
 
-STATUSES = ["pending", "approved", "rejected", "scheduled", "published", "failed"]
+STATUSES = ["pending", "design_review", "approved", "rejected", "scheduled", "published", "failed"]
 KINDS = ["post", "reply"]
 
 SCHEMA = """
@@ -35,6 +40,9 @@ CREATE TABLE IF NOT EXISTS drafts (
     updated_at TEXT NOT NULL
 );
 """
+# Columns added after the first version; added to older databases automatically.
+NEW_COLUMNS = {"graphic_spec": "TEXT",      # JSON: layout, headline, label, items, subtext
+               "channel_id": "TEXT"}        # Buffer channel the post was scheduled to
 
 
 @contextmanager
@@ -44,6 +52,10 @@ def _conn(db_path=None):
     con = sqlite3.connect(path)
     con.row_factory = sqlite3.Row
     con.execute(SCHEMA)
+    have = {r["name"] for r in con.execute("PRAGMA table_info(drafts)")}
+    for col, kind in NEW_COLUMNS.items():
+        if col not in have:
+            con.execute(f"ALTER TABLE drafts ADD COLUMN {col} {kind}")
     try:
         yield con
         con.commit()
@@ -59,7 +71,9 @@ def add_draft(platform: str, text: str, kind: str = "post", db_path=None, **fiel
     if kind not in KINDS:
         raise ValueError(f"kind must be one of {KINDS}")
     allowed = {"media_type", "image_url", "design_link", "suggested_time", "predicted_engagement",
-               "reply_to_comment_id", "comment_text", "agent_notes"}
+               "reply_to_comment_id", "comment_text", "agent_notes", "graphic_spec"}
+    if isinstance(fields.get("graphic_spec"), dict):
+        fields["graphic_spec"] = json.dumps(fields["graphic_spec"])
     extra = {k: v for k, v in fields.items() if k in allowed and v is not None}
     cols = ["kind", "platform", "text", "status", "created_at", "updated_at", *extra]
     vals = [kind, platform.lower(), text, "pending", _now(), _now(), *extra.values()]
@@ -124,7 +138,7 @@ def human_edit(draft_id: int, text: str | None = None, suggested_time: str | Non
 def send_back_to_pending(draft_id: int, db_path=None) -> None:
     with _conn(db_path) as con:
         con.execute("UPDATE drafts SET status = 'pending', updated_at = ? WHERE id = ? AND status IN "
-                    "('approved', 'rejected', 'failed')", (_now(), draft_id))
+                    "('approved', 'rejected', 'failed', 'design_review')", (_now(), draft_id))
 
 
 def counts(db_path=None) -> dict:
@@ -151,3 +165,39 @@ def mark_done(draft_id: int, status: str, external_id: str | None = None, db_pat
     with _conn(db_path) as con:
         con.execute("UPDATE drafts SET status = ?, external_id = COALESCE(?, external_id), updated_at = ? "
                     "WHERE id = ?", (status, external_id, _now(), draft_id))
+
+
+def graphic_spec(draft: dict) -> dict | None:
+    try:
+        return json.loads(draft["graphic_spec"]) if draft.get("graphic_spec") else None
+    except (TypeError, ValueError):
+        return None
+
+
+def needs_graphic(draft: dict) -> bool:
+    return draft["kind"] == "post" and bool(draft.get("image_url") or draft.get("graphic_spec"))
+
+
+def set_graphic(draft_id: int, image_url: str, spec: dict | None = None, db_path=None) -> None:
+    """Attach a (re)generated graphic and move the draft to graphic review (human-triggered)."""
+    with _conn(db_path) as con:
+        con.execute("UPDATE drafts SET image_url = ?, graphic_spec = COALESCE(?, graphic_spec), "
+                    "status = 'design_review', updated_at = ? WHERE id = ?",
+                    (image_url, json.dumps(spec) if spec else None, _now(), draft_id))
+
+
+def set_status(draft_id: int, status: str, note: str | None = None, db_path=None) -> None:
+    """Human-only status change (used by the app's review buttons)."""
+    if status not in STATUSES:
+        raise ValueError(f"status must be one of {STATUSES}")
+    with _conn(db_path) as con:
+        con.execute("UPDATE drafts SET status = ?, reviewer_note = COALESCE(?, reviewer_note), updated_at = ? "
+                    "WHERE id = ?", (status, note, _now(), draft_id))
+
+
+def set_publish_result(draft_id: int, status: str, external_id: str | None = None, channel_id: str | None = None,
+                       image_url: str | None = None, db_path=None) -> None:
+    with _conn(db_path) as con:
+        con.execute("UPDATE drafts SET status = ?, external_id = COALESCE(?, external_id), "
+                    "channel_id = COALESCE(?, channel_id), image_url = COALESCE(?, image_url), updated_at = ? "
+                    "WHERE id = ?", (status, external_id, channel_id, image_url, _now(), draft_id))

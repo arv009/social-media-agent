@@ -12,7 +12,7 @@ LinkedIn / Facebook / Instagram, and **learns from post results** to write bette
 | 1 | AI writes posts → review queue | ✅ agent + review-queue connector (needs a Claude API key to run) |
 | 2 | Approval step | ✅ Review queue page in the app + terminal (`scripts/review.py`) |
 | 3 | Design creation | ✅ designer connector in the Arvin Marketing Pro style (4 layouts) + Canva connector |
-| 6 | Scheduling | ✅ Facebook/Instagram via the Meta connector (untested without a token); Buffer/LinkedIn ⏳ |
+| 6 | Scheduling | ✅ Buffer (LinkedIn, Facebook, Instagram) with images hosted on Cloudinary; Meta direct as fallback |
 | 7 | AI-drafted comment replies (with approval) | ✅ Meta connector + review queue (untested without a token) |
 
 ## Quick start
@@ -34,10 +34,14 @@ streamlit run app/streamlit_app.py           # the app: dashboard, AI agent, rev
 - **Left panel: AI agent.** Chat with the agent: "Write a LinkedIn post about…", "What worked best?",
   "Draft replies to new comments". It uses the connectors, makes on-brand graphics, and puts drafts in the
   Review queue. Needs `ANTHROPIC_API_KEY`.
-- **Dashboard:** followers, posts, interactions, impressions and engagement rate from your connected
-  Facebook Page and Instagram account (refreshes every 10 minutes), weekly charts and recent posts.
+- **Dashboard:** posts, interactions, impressions and engagement rate from Buffer for LinkedIn, Facebook
+  and Instagram (Buffer refreshes metrics daily), or from the direct Facebook & Instagram connection; weekly
+  charts and recent posts.
   **Save to ML dataset** adds those posts to the model's training data. Shows sample data until you connect.
-- **Review queue:** approve, edit or reject drafts (with a note for the agent), then publish or schedule.
+- **Review queue (two approvals):** **1 · Captions**: edit and approve the caption (or reject with a note
+  for the agent) → the graphic is created in your brand style → **2 · Graphics**: change the layout or text
+  and regenerate if needed, pick the time (suggested time from your data, or the next Buffer queue slot) →
+  **Approve & schedule** uploads the image to Cloudinary and schedules the post in Buffer.
 - **Insights:** what the ML model learned, and the exact insights the agent gets.
 - **Connections:** **Connect** buttons for Facebook & Instagram, LinkedIn, Canva and Google Drive (each opens
   that service's own sign-in page), plus the Claude status. Each service needs an app you register once;
@@ -51,6 +55,19 @@ The designer connector draws 1080×1080 images in the Arvin Marketing Pro style 
 and Bebas Neue fonts bundled in `assets/fonts`): **cover** (carousel first slide), **list** (numbered tips),
 **question** (condensed hook) and **card** (email style). Brand name, handle, website and colors live in
 `brand.json`. Save your real logo as a transparent PNG at `assets/logo.png` to use it instead of the drawn one.
+
+## Buffer + Cloudinary setup (posting, scheduling, analytics)
+
+1. In Buffer, connect your LinkedIn profile, Facebook Page and Instagram account.
+2. **publish.buffer.com → Settings → API** → create a key → `BUFFER_API_KEY`.
+3. Sign up free at **cloudinary.com** → copy the **API environment variable** (`cloudinary://...`) →
+   `CLOUDINARY_URL`. Buffer needs a permanent public image link and can't use Google Drive share links.
+4. Set `APP_TIMEZONE` (e.g. `Asia/Manila`).
+5. Check it: `python scripts/buffer_check.py` (read-only; lists channels and recent post metrics).
+   On the Connections page you can pick which Buffer channel each platform posts to.
+
+Buffer's API docs don't confirm every field name yet, so if `buffer_check.py` shows an API error, send it
+over and the query can be adjusted.
 
 ## Deploy on Streamlit Community Cloud
 

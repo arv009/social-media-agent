@@ -1,10 +1,12 @@
-"""Dashboard: live numbers from the connected social accounts (sample data until you connect)."""
+"""Dashboard: live numbers from Buffer (or Facebook & Instagram directly); sample data until you connect."""
+import os
 from datetime import datetime, timedelta
 
 import pandas as pd
 import streamlit as st
 from ui import PLATFORM_ICON, ROOT, flash, pname, show_flash
 
+from social_agent import buffer_api
 from social_agent import connections as cx
 from social_agent.features import TARGET, build_features
 from social_agent.schema import combine
@@ -44,6 +46,22 @@ def load_live(version: str) -> dict:
     return out
 
 
+@st.cache_data(ttl=900, show_spinner="Loading posts and analytics from Buffer…")
+def load_buffer(_key_hint: str) -> dict:
+    """Channels + published posts with metrics from Buffer. Cached 15 minutes (Buffer refreshes metrics daily)."""
+    out = {"accounts": [], "posts": pd.DataFrame(), "errors": []}
+    try:
+        client = buffer_api.BufferClient()
+        for c in client.channels():
+            if c["service"].lower() in PLATFORM_ICON:
+                out["accounts"].append({"platform": c["service"].lower(),
+                                        "name": c.get("displayName") or c.get("name"), "followers": None})
+        out["posts"] = client.sent_posts_frame(limit=150)
+    except buffer_api.BufferError as e:
+        out["errors"].append(str(e))
+    return out
+
+
 @st.cache_data(ttl=300)
 def load_sample(mtime: float) -> pd.DataFrame:
     df = pd.read_csv(POSTS_CSV)
@@ -69,9 +87,9 @@ def render_posts(df: pd.DataFrame, accounts: list[dict], live: bool):
         return None if not prev else f"{(cur - prev) / prev:+.0%} vs previous 30 days"
 
     k = st.columns(5)
-    followers = sum(a.get("followers") or 0 for a in accounts)
-    k[0].metric("Followers", f"{followers:,}" if accounts else "–",
-                help="Facebook Page followers + Instagram followers")
+    known = [a["followers"] for a in accounts if a.get("followers") is not None]
+    k[0].metric("Followers", f"{sum(known):,}" if known else "–",
+                help="Facebook Page + Instagram followers (needs the direct Facebook & Instagram connection)")
     k[1].metric("Posts (30 days)", len(last30), delta(len(last30), len(prev30)))
     k[2].metric("Interactions (30 days)", f"{int(last30['interactions'].sum()):,}",
                 delta(last30["interactions"].sum(), prev30["interactions"].sum()))
@@ -87,7 +105,10 @@ def render_posts(df: pd.DataFrame, accounts: list[dict], live: bool):
             with col.container(border=True):
                 st.markdown(f"**{PLATFORM_ICON.get(a['platform'], '')} {a['name']}**")
                 extra = f" · {a['posts']:,} posts" if a.get("posts") else ""
-                st.caption(f"{(a.get('followers') or 0):,} followers{extra}")
+                if a.get("followers") is not None:
+                    st.caption(f"{a['followers']:,} followers{extra}")
+                else:
+                    st.caption(f"{pname(a['platform'])} via Buffer")
                 if a.get("link"):
                     st.link_button("Open", a["link"])
 
@@ -117,13 +138,21 @@ def render_posts(df: pd.DataFrame, accounts: list[dict], live: bool):
 st.title("📊 Dashboard")
 show_flash()
 creds = cx.meta_credentials()
+source = "buffer" if buffer_api.configured() else ("meta" if creds else None)
 
-if creds:
-    data = load_live(cx.version())
+if source:
+    if source == "buffer":
+        data = load_buffer(os.environ["BUFFER_API_KEY"][-6:])
+        note = "Live from Buffer · Buffer updates post metrics about once a day"
+        loader = load_buffer
+    else:
+        data = load_live(cx.version())
+        note = "Live from Facebook & Instagram · refreshed at most every 10 minutes"
+        loader = load_live
     c1, c2, c3 = st.columns([2, 1, 1])
-    c1.caption(f"Live from Facebook & Instagram · refreshed at most every 10 minutes · {datetime.now():%I:%M %p}")
+    c1.caption(f"{note} · {datetime.now():%I:%M %p}")
     if c2.button("🔄 Refresh now", use_container_width=True):
-        load_live.clear()
+        loader.clear()
         st.rerun()
     if c3.button("💾 Save to ML dataset", use_container_width=True, disabled=data["posts"].empty,
                  help="Adds these posts to data/processed/posts.csv so the model learns from your real results."):
@@ -138,7 +167,7 @@ if creds:
     else:
         render_posts(data["posts"], data["accounts"], live=True)
 else:
-    st.warning("Showing **sample (fake) data**. Connect Facebook & Instagram to see your live numbers.")
+    st.warning("Showing **sample (fake) data**. Connect Buffer (or Facebook & Instagram) to see your live numbers.")
     st.page_link("views/connections.py", label="Go to Connections", icon="🔌")
     if POSTS_CSV.exists():
         render_posts(load_sample(POSTS_CSV.stat().st_mtime), [], live=False)

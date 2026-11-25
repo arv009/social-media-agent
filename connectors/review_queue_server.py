@@ -3,6 +3,8 @@
 There is intentionally NO approve tool. Approving is done by a human with
 scripts/review.py (or the Streamlit page in a later stage).
 """
+import json
+
 from _common import to_json
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
@@ -15,7 +17,10 @@ mcp = MCPServer("review-queue")
 @mcp.tool()
 def submit_post_draft(platform: str, text: str, media_type: str = "none", image_url: str | None = None,
                       design_link: str | None = None, suggested_time: str | None = None,
-                      predicted_engagement: float | None = None, agent_notes: str | None = None) -> str:
+                      predicted_engagement: float | None = None, agent_notes: str | None = None,
+                      graphic_layout: str | None = None, graphic_headline: str | None = None,
+                      graphic_label: str | None = None, graphic_items_json: str | None = None,
+                      graphic_subtext: str | None = None) -> str:
     """Save a social media post draft to the review queue for a human to approve.
 
     Args:
@@ -27,10 +32,31 @@ def submit_post_draft(platform: str, text: str, media_type: str = "none", image_
         suggested_time: When to post, ISO format local time, e.g. 2026-12-01T09:00.
         predicted_engagement: Engagement rate predicted by the analytics model (e.g. 0.052).
         agent_notes: Short reason for the choices made (shown to the reviewer).
+        graphic_layout: Plan for the post's graphic, created AFTER the human approves the caption:
+            cover, list, question or card. Leave empty for a text-only post.
+        graphic_headline: Short headline for the graphic (under 8 words; under 6 for list).
+        graphic_label: Gold tag above the list headline, or the email subject for the card layout.
+        graphic_items_json: For the list layout: JSON list of 3-5 short items.
+        graphic_subtext: Body text for the card layout (under 25 words).
     """
+    spec = None
+    if graphic_layout:
+        items = None
+        if graphic_items_json:
+            try:
+                items = [str(i) for i in json.loads(graphic_items_json)]
+            except (ValueError, TypeError) as e:
+                raise ToolError(f"graphic_items_json must be a JSON list of strings ({e}).") from e
+        if graphic_layout not in ("cover", "list", "question", "card"):
+            raise ToolError("graphic_layout must be cover, list, question or card.")
+        if graphic_layout == "list" and not items:
+            raise ToolError("The list layout needs 3-5 items in graphic_items_json.")
+        spec = {"layout": graphic_layout, "headline": graphic_headline or "", "label": graphic_label or "",
+                "items": items, "subtext": graphic_subtext or ""}
+        media_type = "image" if media_type == "none" else media_type
     draft_id = rq.add_draft(platform, text, kind="post", media_type=media_type, image_url=image_url,
                             design_link=design_link, suggested_time=suggested_time,
-                            predicted_engagement=predicted_engagement, agent_notes=agent_notes)
+                            predicted_engagement=predicted_engagement, agent_notes=agent_notes, graphic_spec=spec)
     return f"Saved as draft #{draft_id} (status: pending). A human needs to approve it before it can be published."
 
 
