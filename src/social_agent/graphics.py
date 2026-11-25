@@ -7,8 +7,8 @@ Four layouts (see "layouts" in brand.json):
   card      email-style white card with headline, body and a notification pill
 
 Colors, fonts, logo, handle and website come from brand.json. Fonts are bundled in assets/fonts
-so images look the same on Streamlit Cloud. Put a transparent PNG logo at assets/logo.png to use
-it instead of the drawn text logo.
+so images look the same on Streamlit Cloud. assets/logo.png is the white logo used on the navy
+background (assets/logo_dark.png is the navy version, for light backgrounds).
 """
 import json
 import re
@@ -81,7 +81,7 @@ def _logo(img: Image.Image, brand: dict, cx: int | None, x: int, y: int, scale: 
     logo_file = ROOT / brand.get("logo_path", "") if brand.get("logo_path") else None
     if logo_file and logo_file.is_file():
         logo = Image.open(logo_file).convert("RGBA")
-        logo.thumbnail((int(240 * scale), int(90 * scale)))
+        logo.thumbnail((int(300 * scale), int(110 * scale)))  # ~28% of the width, like the Canva designs
         lx = cx - logo.width // 2 if cx is not None else x
         img.paste(logo, (lx, y), logo)
         return

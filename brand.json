@@ -1,6 +1,9 @@
 {
   "name": "Arvin Marketing Pro",
-  "logo_text": ["ARVIN", "MARKETING PRO"],
+  "logo_text": [
+    "ARVIN",
+    "MARKETING PRO"
+  ],
   "handle": "ArvinMarketingPro",
   "website": "www.arvinmarketingpro.com",
   "colors": {
@@ -26,5 +29,7 @@
     "question": "Question/statement: tall condensed white uppercase headline with an underline. Use for hooks and questions.",
     "card": "Email card: white card with headline, short body and a gold 'New Email Received' pill. Use for email-marketing or story-style posts."
   },
-  "voice": "Friendly, practical and encouraging. Short sentences. No jargon. Light use of emojis."
+  "voice": "Friendly, practical and encouraging. Short sentences. No jargon. Light use of emojis.",
+  "logo_dark_path": "assets/logo_dark.png",
+  "tagline": "Shaping Digital Presence"
 }
