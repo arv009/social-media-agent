@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 import streamlit as st
-from ui import PLATFORM_ICON, ROOT, flash, pname, show_flash
+from ui import PLATFORMS, ROOT, flash, pname, show_flash
 
 from social_agent import buffer_api
 from social_agent import connections as cx
@@ -53,7 +53,7 @@ def load_buffer(_key_hint: str) -> dict:
     try:
         client = buffer_api.BufferClient()
         for c in client.channels():
-            if c["service"].lower() in PLATFORM_ICON:
+            if c["service"].lower() in PLATFORMS:
                 out["accounts"].append({"platform": c["service"].lower(),
                                         "name": c.get("displayName") or c.get("name"), "followers": None})
         out["posts"] = client.sent_posts_frame(limit=150)
@@ -103,7 +103,7 @@ def render_posts(df: pd.DataFrame, accounts: list[dict], live: bool):
         cols = st.columns(len(accounts))
         for col, a in zip(cols, accounts):
             with col.container(border=True):
-                st.markdown(f"**{PLATFORM_ICON.get(a['platform'], '')} {a['name']}**")
+                st.markdown(f"**{a['name']}**")
                 extra = f" · {a['posts']:,} posts" if a.get("posts") else ""
                 if a.get("followers") is not None:
                     st.caption(f"{a['followers']:,} followers{extra}")
@@ -125,7 +125,7 @@ def render_posts(df: pd.DataFrame, accounts: list[dict], live: bool):
 
     st.markdown("**Recent posts**")
     table = df.sort_values("posted_at", ascending=False).head(25)
-    table = table.assign(platform=table["platform"].map(lambda p: f"{PLATFORM_ICON.get(p, '')} {pname(p)}"),
+    table = table.assign(platform=table["platform"].map(pname),
                          text=table["text"].str.slice(0, 140))
     st.dataframe(table[["posted_at", "platform", "media_type", "text", "impressions", "likes", "comments",
                         "shares", "interactions", TARGET]],
@@ -135,7 +135,7 @@ def render_posts(df: pd.DataFrame, accounts: list[dict], live: bool):
                                 "text": st.column_config.TextColumn("Post", width="large")})
 
 
-st.title("📊 Dashboard")
+st.title("Dashboard")
 show_flash()
 creds = cx.meta_credentials()
 source = "buffer" if buffer_api.configured() else ("meta" if creds else None)
@@ -151,10 +151,10 @@ if source:
         loader = load_live
     c1, c2, c3 = st.columns([2, 1, 1])
     c1.caption(f"{note} · {datetime.now():%I:%M %p}")
-    if c2.button("🔄 Refresh now", use_container_width=True):
+    if c2.button("Refresh now", use_container_width=True):
         loader.clear()
         st.rerun()
-    if c3.button("💾 Save to ML dataset", use_container_width=True, disabled=data["posts"].empty,
+    if c3.button("Save to ML dataset", use_container_width=True, disabled=data["posts"].empty,
                  help="Adds these posts to data/processed/posts.csv so the model learns from your real results."):
         existing = pd.read_csv(POSTS_CSV) if POSTS_CSV.exists() else data["posts"].iloc[0:0]
         combine(existing, data["posts"]).to_csv(POSTS_CSV, index=False)
@@ -168,11 +168,11 @@ if source:
         render_posts(data["posts"], data["accounts"], live=True)
 else:
     st.warning("Showing **sample (fake) data**. Connect Buffer (or Facebook & Instagram) to see your live numbers.")
-    st.page_link("views/connections.py", label="Go to Connections", icon="🔌")
+    st.page_link("views/connections.py", label="Go to Connections")
     if POSTS_CSV.exists():
         render_posts(load_sample(POSTS_CSV.stat().st_mtime), [], live=False)
 
 profile = cx.linkedin_profile()
 if profile:
-    st.caption(f"💼 LinkedIn connected as {profile.get('name')}. LinkedIn stats need API approval, so they "
+    st.caption(f"LinkedIn connected as {profile.get('name')}. LinkedIn stats need API approval, so they "
                "aren't shown here yet.")

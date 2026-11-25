@@ -27,11 +27,11 @@ def _run(text: str):
 
     def on_event(kind, data):  # called from the agent's background thread: only collect, no st.* calls
         if kind == "tool_call":
-            steps.append("🔧 " + _step_label(data["name"], data["input"]))
+            steps.append("Tool: " + _step_label(data["name"], data["input"]))
         elif kind == "tool_result" and data["is_error"]:
-            steps.append("⚠️ " + data["text"][:160])
+            steps.append("Error: " + data["text"][:160])
         elif kind == "model_switch":
-            steps.append(f"↪ {model_name(data['from'])} declined; continuing with {model_name(data['to'])}")
+            steps.append(f"{model_name(data['from'])} declined; continued with {model_name(data['to'])}")
 
     chat = st.session_state.chat
     chat.append({"role": "user", "content": text})
@@ -57,7 +57,7 @@ def render():
     st.session_state.setdefault("chat", [])
     st.session_state.setdefault("agent_messages", [])
     with st.sidebar:
-        st.markdown("### 🤖 AI agent")
+        st.markdown("### AI agent")
         if not os.getenv("ANTHROPIC_API_KEY"):
             st.info("Add **ANTHROPIC_API_KEY** to `.env` (or the app's Secrets on Streamlit Cloud) to chat "
                     "with the agent.")

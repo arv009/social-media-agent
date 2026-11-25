@@ -36,22 +36,22 @@ GOOGLE_SCOPES = ["openid", "email", "https://www.googleapis.com/auth/drive.reado
                  "https://www.googleapis.com/auth/drive.file"]
 
 PROVIDERS = {
-    "meta": {"name": "Facebook & Instagram", "icon": "📘", "group": "Social accounts",
+    "meta": {"name": "Facebook & Instagram", "group": "Social accounts",
              "needs": ["META_APP_ID", "META_APP_SECRET"], "file": META_FILE,
              "what": "Live page and Instagram stats, comments, publishing approved posts.",
              "setup": "developers.facebook.com > Create app (Business) > add Facebook Login for Business; "
                       "add the app URL as a Valid OAuth Redirect URI."},
-    "linkedin": {"name": "LinkedIn", "icon": "💼", "group": "Social accounts",
+    "linkedin": {"name": "LinkedIn", "group": "Social accounts",
                  "needs": ["LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET"], "file": LINKEDIN_FILE,
                  "what": "Your LinkedIn profile (posting and analytics come later).",
                  "setup": "linkedin.com/developers > Create app > Products: Sign In with LinkedIn (OpenID) and "
                           "Share on LinkedIn; add the app URL under Auth > Redirect URLs."},
-    "canva": {"name": "Canva", "icon": "🎨", "group": "Design & files",
+    "canva": {"name": "Canva", "group": "Design & files",
               "needs": ["CANVA_CLIENT_ID", "CANVA_CLIENT_SECRET"], "file": CANVA_FILE,
               "what": "Brand templates, sending designs to Canva, exporting images.",
               "setup": "canva.com/developers > Create integration; enable the design, asset and brandtemplate "
                        "scopes; add the app URL under Authentication > Redirect URLs."},
-    "google_drive": {"name": "Google Drive", "icon": "📁", "group": "Design & files",
+    "google_drive": {"name": "Google Drive", "group": "Design & files",
                      "needs": ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"], "file": GOOGLE_FILE,
                      "what": "Read brand docs and briefs, upload exported designs.",
                      "setup": "console.cloud.google.com > enable Google Drive API > OAuth client (Web application); "

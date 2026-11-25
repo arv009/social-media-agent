@@ -8,7 +8,7 @@ from social_agent import buffer_api, image_host
 from social_agent import connections as cx
 from social_agent.agent import MODEL, model_name
 
-st.title("🔌 Connections")
+st.title("Connections")
 st.caption("Connect your accounts so the dashboard shows live data and the agent can use them. "
            "Each Connect button opens the service's own sign-in page in a new tab.")
 show_flash()
@@ -24,7 +24,7 @@ def provider_card(key: str):
         with top:
             badge = ":green-badge[Connected]" if s["connected"] else (
                 ":orange-badge[Needs setup]" if s["missing"] else ":gray-badge[Not connected]")
-            st.markdown(f"#### {p['icon']} {p['name']} {badge}")
+            st.markdown(f"#### {p['name']} {badge}")
             st.caption(p["what"])
             if s["connected"] and s["account"]:
                 st.markdown(f"Signed in as **{s['account']}**")
@@ -75,7 +75,7 @@ def buffer_channels(_key_hint: str) -> list[dict]:
 def buffer_card():
     ok = buffer_api.configured()
     with st.container(border=True):
-        st.markdown(f"#### 🗓 Buffer {':green-badge[Connected]' if ok else ':orange-badge[Needs setup]'} "
+        st.markdown(f"#### Buffer {':green-badge[Connected]' if ok else ':orange-badge[Needs setup]'} "
                     ":blue-badge[Recommended]")
         st.caption("Posting and scheduling to LinkedIn, Facebook and Instagram, plus post analytics for the "
                    "dashboard and the ML model, all through one key.")
@@ -96,7 +96,7 @@ def buffer_card():
         prefs = buffer_api.preferred_channels()
         for platform in ("linkedin", "facebook", "instagram"):
             options = [c for c in chans if c["service"].lower() == platform]
-            name = {"linkedin": "💼 LinkedIn", "facebook": "📘 Facebook", "instagram": "📸 Instagram"}[platform]
+            name = {"linkedin": "LinkedIn", "facebook": "Facebook", "instagram": "Instagram"}[platform]
             if not options:
                 st.caption(f"{name}: not connected in Buffer")
                 continue
@@ -116,7 +116,7 @@ def buffer_card():
 def cloudinary_card():
     ok = image_host.configured()
     with st.container(border=True):
-        st.markdown(f"#### 🖼️ Cloudinary {':green-badge[Ready]' if ok else ':orange-badge[Needs setup]'}")
+        st.markdown(f"#### Cloudinary {':green-badge[Ready]' if ok else ':orange-badge[Needs setup]'}")
         st.caption("Hosts approved graphics at a permanent public link, which Buffer needs to attach images. Free plan.")
         if not ok:
             st.markdown("Sign up at **cloudinary.com** (free), copy the **API environment variable** from the "
@@ -141,7 +141,7 @@ provider_card("google_drive")
 st.subheader("AI")
 with st.container(border=True):
     ok = bool(os.getenv("ANTHROPIC_API_KEY"))
-    st.markdown(f"#### 🤖 Claude {':green-badge[Ready]' if ok else ':orange-badge[Needs setup]'}")
+    st.markdown(f"#### Claude {':green-badge[Ready]' if ok else ':orange-badge[Needs setup]'}")
     st.caption(f"Powers the AI agent in the left panel. Model: {model_name(MODEL)}, stepping up to Sonnet 5.5 "
                "and Opus 5.5 when a request is declined.")
     if not ok:

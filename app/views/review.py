@@ -9,7 +9,7 @@ from datetime import date, datetime, time, timedelta
 
 import pandas as pd
 import streamlit as st
-from ui import PLATFORM_ICON, ROOT, flash, pname, show_flash
+from ui import PLATFORMS, ROOT, flash, pname, show_flash
 
 from social_agent import buffer_api, graphics, image_host, publishing
 from social_agent import connections as cx
@@ -40,14 +40,13 @@ def time_inputs(d: dict, key: str) -> str:
 def text_stats(text: str, platform: str):
     limit = CHAR_LIMIT.get(platform, 3000)
     hashtags = sum(w.startswith("#") for w in text.split())
-    st.caption(f"{'⚠️ ' if len(text) > limit else ''}{len(text):,} / {limit:,} characters · "
+    st.caption(f"{'Over the limit: ' if len(text) > limit else ''}{len(text):,} / {limit:,} characters · "
                f"{len(text.split())} words · {hashtags} hashtags")
 
 
 def draft_header(d: dict):
-    icon = PLATFORM_ICON.get(d["platform"], "📝")
     kind = "Reply" if d["kind"] == "reply" else "Post"
-    st.markdown(f"#### {icon} {kind} for {pname(d['platform'])} · #{d['id']}")
+    st.markdown(f"#### {kind} for {pname(d['platform'])} · #{d['id']}")
     st.caption(f"Created {d['created_at'].replace('T', ' ')}")
 
 
@@ -85,7 +84,7 @@ def finish(d_id: int, use_queue: bool = False):
         flash(f"Draft #{d_id} approved. Add BUFFER_API_KEY to schedule it automatically (see Connections).")
         return
     try:
-        flash(publishing.schedule_with_buffer(d_id, use_queue=use_queue) + " ✅")
+        flash(publishing.schedule_with_buffer(d_id, use_queue=use_queue))
     except publishing.PublishError as e:
         flash(f"Draft #{d_id} approved, but scheduling failed: {e}", "error")
 
@@ -209,25 +208,25 @@ def approved_card(d: dict):
             st.markdown(d["text"].replace("\n", "  \n"))
             when = parse_time(d["suggested_time"])
             if d["kind"] == "post" and when:
-                st.caption(f"🕘 Suggested time: {when:%a %d %b %Y, %I:%M %p}")
+                st.caption(f"Suggested time: {when:%a %d %b %Y, %I:%M %p}")
             cols = st.columns(3)
             if d["kind"] == "post":
-                if cols[0].button("📅 Schedule in Buffer", key=f"buf_{d['id']}", type="primary",
+                if cols[0].button("Schedule in Buffer", key=f"buf_{d['id']}", type="primary",
                                   disabled=not BUFFER_READY, use_container_width=True):
                     finish(d["id"])
                     st.rerun()
-                if cols[1].button("➕ Buffer queue", key=f"bufq_{d['id']}", disabled=not BUFFER_READY,
+                if cols[1].button("Add to Buffer queue", key=f"bufq_{d['id']}", disabled=not BUFFER_READY,
                                   use_container_width=True):
                     finish(d["id"], use_queue=True)
                     st.rerun()
-            elif cols[0].button("💬 Send reply", key=f"rep_{d['id']}", type="primary", disabled=not META_READY,
+            elif cols[0].button("Send reply", key=f"rep_{d['id']}", type="primary", disabled=not META_READY,
                                 use_container_width=True):
                 try:
                     flash(publishing.send_reply(d["id"]))
                 except publishing.PublishError as e:
                     flash(f"Couldn't send #{d['id']}: {e}", "error")
                 st.rerun()
-            if cols[2].button("↩️ Back to review", key=f"back_{d['id']}", use_container_width=True):
+            if cols[2].button("Back to review", key=f"back_{d['id']}", use_container_width=True):
                 rq.send_back_to_pending(d["id"])
                 st.rerun()
             if d["kind"] == "post" and not BUFFER_READY:
@@ -241,7 +240,7 @@ def approved_card(d: dict):
 
 # ---------- page ----------
 
-st.title("📝 Review queue")
+st.title("Review queue")
 show_flash()
 counts = rq.counts()
 k = st.columns(5)
@@ -251,9 +250,9 @@ k[2].metric("Approved, not scheduled", counts["approved"])
 k[3].metric("Scheduled / published", counts["scheduled"] + counts["published"])
 k[4].metric("Failed", counts["failed"])
 if not BUFFER_READY:
-    st.caption("ℹ️ Buffer isn't connected yet: approved posts wait in the Approved tab. Set it up on Connections.")
-platform_filter = st.pills("Platforms", list(PLATFORM_ICON), selection_mode="multi", default=list(PLATFORM_ICON),
-                           format_func=lambda p: f"{PLATFORM_ICON[p]} {pname(p)}") or list(PLATFORM_ICON)
+    st.caption("Buffer isn't connected yet: approved posts wait in the Approved tab. Set it up on Connections.")
+platform_filter = st.pills("Platforms", PLATFORMS, selection_mode="multi", default=PLATFORMS,
+                           format_func=pname) or PLATFORMS
 
 
 def filtered(*statuses: str) -> list[dict]:
@@ -306,7 +305,7 @@ elif section == "scheduled":
         with st.container(border=True):
             c1, c2 = st.columns([4, 1])
             when = parse_time(d["suggested_time"])
-            c1.markdown(f"**{PLATFORM_ICON.get(d['platform'], '')} #{d['id']}** · {d['status']}"
+            c1.markdown(f"**{pname(d['platform'])} #{d['id']}** · {d['status']}"
                         + (f" · {when:%a %d %b, %I:%M %p}" if when else ""))
             c1.caption(d["text"][:160] + ("…" if len(d["text"]) > 160 else ""))
             if d.get("image_url", "") and d["image_url"].startswith("http"):
@@ -327,7 +326,7 @@ else:
         if stuck:
             pick = st.selectbox("Send a rejected or failed draft back to review", [None] + [d["id"] for d in stuck],
                                 format_func=lambda i: "Choose…" if i is None else f"#{i}")
-            if pick and st.button("↩️ Back to review"):
+            if pick and st.button("Back to review"):
                 rq.send_back_to_pending(pick)
                 st.rerun()
     else:

@@ -13,7 +13,7 @@ import ui  # noqa: F401 - sets up import paths and .env
 
 from social_agent import connections as cx
 
-st.set_page_config(page_title="Social Media Agent · Arvin Marketing Pro", page_icon="📣", layout="wide")
+st.set_page_config(page_title="Social Media Agent · Arvin Marketing Pro", page_icon=":material/campaign:", layout="wide")
 
 # 1) Coming back from a Connect button: the service redirects here with ?code=...&state=...
 #    Handled before the password check: it only works with the one-time state the app created.
@@ -29,7 +29,7 @@ if "state" in params and ("code" in params or "error" in params):
 # 2) Optional password (strongly recommended on Streamlit Cloud: the app can post and spend API credits).
 password = os.getenv("APP_PASSWORD")
 if password and not st.session_state.get("authed"):
-    st.title("📣 Social Media Agent")
+    st.title("Social Media Agent")
     entered = st.text_input("Password", type="password")
     if entered:
         if hmac.compare_digest(entered, password):
@@ -41,11 +41,11 @@ if password and not st.session_state.get("authed"):
 # 3) Pages and the agent panel.
 pages = {
     "Workspace": [
-        st.Page("views/dashboard.py", title="Dashboard", icon="📊", default=True),
-        st.Page("views/review.py", title="Review queue", icon="📝"),
-        st.Page("views/insights.py", title="Insights", icon="💡"),
+        st.Page("views/dashboard.py", title="Dashboard", icon=":material/dashboard:", default=True),
+        st.Page("views/review.py", title="Review queue", icon=":material/rate_review:"),
+        st.Page("views/insights.py", title="Insights", icon=":material/insights:"),
     ],
-    "Settings": [st.Page("views/connections.py", title="Connections", icon="🔌")],
+    "Settings": [st.Page("views/connections.py", title="Connections", icon=":material/hub:")],
 }
 nav = st.navigation(pages)
 with st.sidebar:

@@ -13,7 +13,7 @@ from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(ROOT / ".env")
 
-PLATFORM_ICON = {"linkedin": "💼", "facebook": "📘", "instagram": "📸"}
+PLATFORMS = ["linkedin", "facebook", "instagram"]
 PLATFORM_NAME = {"linkedin": "LinkedIn", "facebook": "Facebook", "instagram": "Instagram"}
 
 

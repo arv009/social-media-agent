@@ -1,7 +1,7 @@
 """Insights: what the ML model learned from past post results."""
 import pandas as pd
 import streamlit as st
-from ui import PLATFORM_ICON, ROOT, pname
+from ui import ROOT, pname
 
 from social_agent import model as m
 from social_agent.features import TARGET, build_features
@@ -14,7 +14,7 @@ def load_posts(mtime: float) -> pd.DataFrame:
     return build_features(pd.read_csv(POSTS_CSV))
 
 
-st.title("💡 Insights")
+st.title("Insights")
 st.caption("Patterns from past post results. The agent reads the same insights before writing.")
 if not POSTS_CSV.exists():
     st.info("No performance data yet. Run `python scripts/build_dataset.py`.")
@@ -25,7 +25,7 @@ if (df["source"] == "sample").all():
                "exports to see real insights.")
 cols = st.columns(df["platform"].nunique())
 for col, (platform, g) in zip(cols, df.groupby("platform")):
-    col.metric(f"{PLATFORM_ICON.get(platform, '')} {pname(platform)}", f"{g[TARGET].mean():.2%}",
+    col.metric(pname(platform), f"{g[TARGET].mean():.2%}",
                help=f"Average engagement rate over {len(g)} posts")
 left, right = st.columns(2)
 with left:
