@@ -36,7 +36,11 @@ streamlit run app/streamlit_app.py           # the app: dashboard, AI agent, rev
   Review queue. Needs `ANTHROPIC_API_KEY`.
 - **Dashboard:** posts, interactions, impressions and engagement rate from Buffer for LinkedIn, Facebook
   and Instagram (Buffer refreshes metrics daily), or from the direct Facebook & Instagram connection; weekly
-  charts and recent posts.
+  charts and recent posts. **Followers:** Facebook and Instagram counts come from the direct Facebook &
+  Instagram connection (Buffer doesn't provide them); LinkedIn doesn't share stats with apps, so you
+  upload a screenshot of LinkedIn > Analytics (**Update LinkedIn stats from a screenshot**): Claude reads
+  followers, profile viewers, search appearances and post impressions, you confirm, and each upload adds to
+  a follower history chart. `LINKEDIN_FOLLOWERS` in Secrets is a backup that survives restarts.
   **Save to ML dataset** adds those posts to the model's training data. Shows sample data until you connect.
 - **Review queue (two approvals):** **1 · Captions**: edit and approve the caption (or reject with a note
   for the agent) → the graphic is created in your brand style → **2 · Graphics**: change the layout or text

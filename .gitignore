@@ -2,6 +2,8 @@
 .env
 secrets/
 data/review_queue.db
+data/manual_followers.json
+data/linkedin_stats.json
 .streamlit/secrets.toml
 
 # your own analytics exports

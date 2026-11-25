@@ -1,12 +1,18 @@
-"""Dashboard: live numbers from Buffer (or Facebook & Instagram directly); sample data until you connect."""
+"""Dashboard: live numbers from Buffer (or Facebook & Instagram directly); sample data until you connect.
+
+Followers: Facebook and Instagram counts come from the direct Facebook & Instagram connection (Buffer doesn't
+provide them). LinkedIn doesn't share follower counts through its API, so you enter that number yourself.
+"""
 import os
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 import pandas as pd
 import streamlit as st
 from ui import PLATFORMS, ROOT, flash, pname, show_flash
 
-from social_agent import buffer_api
+import anthropic
+
+from social_agent import buffer_api, linkedin_stats
 from social_agent import connections as cx
 from social_agent.features import TARGET, build_features
 from social_agent.schema import combine
@@ -21,6 +27,30 @@ def load_live(version: str) -> dict:
 
     client = MetaClient()
     out = {"accounts": [], "posts": pd.DataFrame(), "errors": []}
+    meta_accounts(client, out)
+    try:
+        out["posts"] = client.fetch_all(max_posts=50)
+    except Exception as e:  # noqa: BLE001
+        out["errors"].append(f"Posts: {e}")
+    if client.skipped_metrics:
+        out["errors"].append("Meta no longer provides these metrics: " + ", ".join(sorted(client.skipped_metrics)))
+    return out
+
+
+@st.cache_data(ttl=600, show_spinner="Loading follower counts from Facebook & Instagram…")
+def load_meta_accounts(version: str) -> dict:
+    """Only the Facebook Page and Instagram account info (followers), used alongside Buffer data."""
+    from social_agent.loaders.meta_api import MetaClient
+
+    out = {"accounts": [], "errors": []}
+    try:
+        meta_accounts(MetaClient(), out)
+    except Exception as e:  # noqa: BLE001
+        out["errors"].append(f"Facebook & Instagram: {e}")
+    return out
+
+
+def meta_accounts(client, out: dict) -> None:
     if client.page_id:
         try:
             info = client.page_info()
@@ -37,13 +67,37 @@ def load_live(version: str) -> dict:
                                     "link": f"https://instagram.com/{info.get('username', '')}"})
         except Exception as e:  # noqa: BLE001
             out["errors"].append(f"Instagram: {e}")
-    try:
-        out["posts"] = client.fetch_all(max_posts=50)
-    except Exception as e:  # noqa: BLE001
-        out["errors"].append(f"Posts: {e}")
-    if client.skipped_metrics:
-        out["errors"].append("Meta no longer provides these metrics: " + ", ".join(sorted(client.skipped_metrics)))
-    return out
+
+
+def linkedin_followers() -> dict | None:
+    """Latest LinkedIn numbers: from your screenshot uploads, else LINKEDIN_FOLLOWERS in Secrets."""
+    last = linkedin_stats.latest()
+    if last:
+        return {"count": last["total_followers"], "as_of": last["date"],
+                "profile_viewers": last.get("profile_viewers"), "post_impressions": last.get("post_impressions")}
+    env = os.getenv("LINKEDIN_FOLLOWERS", "").replace(",", "").strip()
+    return {"count": int(env), "as_of": None} if env.isdigit() else None
+
+
+def merge_accounts(base: list[dict], meta: list[dict]) -> list[dict]:
+    """Add Facebook/Instagram follower counts from Meta and your LinkedIn count to the account list."""
+    accounts = [dict(a) for a in base]
+    for m in meta:
+        match = next((a for a in accounts if a["platform"] == m["platform"]), None)
+        if match:
+            match.update({k: v for k, v in m.items() if v is not None and k != "name"})
+        else:
+            accounts.append(dict(m))
+    li = linkedin_followers()
+    if li:
+        match = next((a for a in accounts if a["platform"] == "linkedin"), None)
+        if not match:
+            match = {"platform": "linkedin", "name": "LinkedIn"}
+            accounts.append(match)
+        match.update(followers=li["count"], manual=True, as_of=li.get("as_of"),
+                     profile_viewers=li.get("profile_viewers"), post_impressions=li.get("post_impressions"))
+    order = {p: i for i, p in enumerate(PLATFORMS)}
+    return sorted(accounts, key=lambda a: order.get(a["platform"], 9))
 
 
 @st.cache_data(ttl=900, show_spinner="Loading posts and analytics from Buffer…")
@@ -72,6 +126,94 @@ def interactions(df: pd.DataFrame) -> pd.Series:
     return df[["likes", "comments", "shares", "clicks", "saves"]].fillna(0).sum(axis=1)
 
 
+def render_accounts(accounts: list[dict]):
+    if not accounts:
+        return
+    known = [a["followers"] for a in accounts if a.get("followers") is not None]
+    st.markdown(f"**Followers: {sum(known):,}**" if known else "**Followers**")
+    cols = st.columns(len(accounts))
+    for col, a in zip(cols, accounts):
+        with col.container(border=True):
+            st.caption(pname(a["platform"]))
+            if a["name"] != pname(a["platform"]):
+                st.markdown(f"**{a['name']}**")
+            if a.get("followers") is not None:
+                extra = f" · {a['posts']:,} posts" if a.get("posts") else ""
+                st.markdown(f"### {a['followers']:,}")
+                note = f"as of {a['as_of']}" if a.get("manual") and a.get("as_of") else (
+                    "entered by you" if a.get("manual") else "live")
+                st.caption(f"followers{extra} · {note}")
+                if a.get("profile_viewers") is not None or a.get("post_impressions") is not None:
+                    st.caption(f"Last 7 days: {a.get('profile_viewers') or 0} profile viewers · "
+                               f"{a.get('post_impressions') or 0:,} post impressions")
+            elif a["platform"] == "linkedin":
+                st.caption("Upload a LinkedIn analytics screenshot below")
+            else:
+                st.caption("Connect Facebook & Instagram on the Connections page to see followers")
+            if a.get("link"):
+                st.link_button("Open", a["link"])
+
+
+def linkedin_editor():
+    """Upload a screenshot of LinkedIn > Analytics; Claude reads the numbers; you confirm and save."""
+    with st.expander("Update LinkedIn stats from a screenshot"):
+        st.caption("LinkedIn doesn't share stats with apps, so take a screenshot of your LinkedIn **Analytics** "
+                   "(Profile > Analytics: Total followers, Profile viewers, Search appearances, Post impressions) "
+                   "and upload it here. Do it as often as you like to build your follower history.")
+        shot = st.file_uploader("LinkedIn analytics screenshot", type=["png", "jpg", "jpeg", "webp"],
+                                key="li_shot")
+        if shot is not None and st.button("Read the numbers", type="primary", disabled=not os.getenv("ANTHROPIC_API_KEY"),
+                                          help=None if os.getenv("ANTHROPIC_API_KEY") else "Needs ANTHROPIC_API_KEY"):
+            with st.spinner("Reading the screenshot…"):
+                try:
+                    st.session_state.li_read = linkedin_stats.read_screenshot(shot.getvalue(), shot.type or "image/png")
+                except linkedin_stats.ReadError as e:
+                    st.error(str(e))
+                except anthropic.APIError as e:
+                    st.error(f"Couldn't read the image: {e}")
+        found = st.session_state.get("li_read") or {}
+        if found:
+            st.success("Check the numbers below, fix anything that's off, then save.")
+        with st.form("li_form", clear_on_submit=False):
+            c = st.columns(4)
+            vals = {}
+            for col, (key, label) in zip(c, [("total_followers", "Total followers"), ("profile_viewers", "Profile viewers"),
+                                             ("search_appearances", "Search appearances"),
+                                             ("post_impressions", "Post impressions")]):
+                vals[key] = col.number_input(label, min_value=0, step=1, value=int(found.get(key) or 0),
+                                             key=f"li_{key}_{found.get(key)}")
+            day = st.date_input("Date of these numbers", date.today())
+            if st.form_submit_button("Save", type="primary"):
+                if not vals["total_followers"]:
+                    st.error("Total followers is required.")
+                else:
+                    extra = {k: found.get(k) for k in found if k.endswith("_pct") or k.endswith("period")}
+                    linkedin_stats.save({**vals, **extra}, on=day)
+                    st.session_state.pop("li_read", None)
+                    flash(f"LinkedIn stats saved for {day:%b %d}.")
+                    st.rerun()
+        rows = linkedin_stats.history()
+        if rows:
+            hist = pd.DataFrame(rows)
+            hist["date"] = pd.to_datetime(hist["date"])
+            if len(hist) >= 2:
+                import altair as alt
+
+                st.markdown("**LinkedIn followers over time**")
+                chart = alt.Chart(hist).mark_line(point=True).encode(
+                    x=alt.X("date:T", title=None),
+                    y=alt.Y("total_followers:Q", title="Followers", scale=alt.Scale(zero=False)),
+                    tooltip=[alt.Tooltip("date:T", format="%b %d, %Y"), alt.Tooltip("total_followers:Q", format=",")])
+                st.altair_chart(chart, use_container_width=True)
+            names = {"total_followers": "Followers", "profile_viewers": "Profile viewers (7d)",
+                     "search_appearances": "Search appearances", "post_impressions": "Post impressions (7d)"}
+            table = hist[["date"] + [c for c in linkedin_stats.FIELDS if c in hist]].iloc[::-1].rename(columns=names)
+            st.dataframe(table, hide_index=True, use_container_width=True,
+                         column_config={"date": st.column_config.DateColumn("Date", format="MMM D, YYYY")})
+        st.caption("On Streamlit Cloud, saved history resets when the app restarts. Keep LINKEDIN_FOLLOWERS in "
+                   "Secrets updated as a backup.")
+
+
 def render_posts(df: pd.DataFrame, accounts: list[dict], live: bool):
     df = df.copy()
     df["posted_at"] = pd.to_datetime(df["posted_at"])
@@ -86,31 +228,15 @@ def render_posts(df: pd.DataFrame, accounts: list[dict], live: bool):
     def delta(cur, prev):
         return None if not prev else f"{(cur - prev) / prev:+.0%} vs previous 30 days"
 
-    k = st.columns(5)
-    known = [a["followers"] for a in accounts if a.get("followers") is not None]
-    k[0].metric("Followers", f"{sum(known):,}" if known else "–",
-                help="Facebook Page + Instagram followers (needs the direct Facebook & Instagram connection)")
-    k[1].metric("Posts (30 days)", len(last30), delta(len(last30), len(prev30)))
-    k[2].metric("Interactions (30 days)", f"{int(last30['interactions'].sum()):,}",
+    k = st.columns(4)
+    k[0].metric("Posts (30 days)", len(last30), delta(len(last30), len(prev30)))
+    k[1].metric("Interactions (30 days)", f"{int(last30['interactions'].sum()):,}",
                 delta(last30["interactions"].sum(), prev30["interactions"].sum()))
     imp = last30["impressions"].sum()
-    k[3].metric("Impressions / views (30 days)", f"{int(imp):,}" if imp else "–")
+    k[2].metric("Impressions / views (30 days)", f"{int(imp):,}" if imp else "–")
     er = last30[TARGET].mean()
-    k[4].metric("Avg engagement rate", f"{er:.2%}" if pd.notna(er) else "–",
+    k[3].metric("Avg engagement rate", f"{er:.2%}" if pd.notna(er) else "–",
                 help="(likes + comments + shares + clicks + saves) / impressions")
-
-    if accounts:
-        cols = st.columns(len(accounts))
-        for col, a in zip(cols, accounts):
-            with col.container(border=True):
-                st.markdown(f"**{a['name']}**")
-                extra = f" · {a['posts']:,} posts" if a.get("posts") else ""
-                if a.get("followers") is not None:
-                    st.caption(f"{a['followers']:,} followers{extra}")
-                else:
-                    st.caption(f"{pname(a['platform'])} via Buffer")
-                if a.get("link"):
-                    st.link_button("Open", a["link"])
 
     left, right = st.columns([3, 2])
     with left:
@@ -145,6 +271,10 @@ if source:
         data = load_buffer(os.environ["BUFFER_API_KEY"][-6:])
         note = "Live from Buffer · Buffer updates post metrics about once a day"
         loader = load_buffer
+        if creds:  # followers come from the direct Facebook & Instagram connection
+            meta = load_meta_accounts(cx.version())
+            data = {**data, "accounts": merge_accounts(data["accounts"], meta["accounts"]),
+                    "errors": data["errors"] + meta["errors"]}
     else:
         data = load_live(cx.version())
         note = "Live from Facebook & Instagram · refreshed at most every 10 minutes"
@@ -153,6 +283,7 @@ if source:
     c1.caption(f"{note} · {datetime.now():%I:%M %p}")
     if c2.button("Refresh now", use_container_width=True):
         loader.clear()
+        load_meta_accounts.clear()
         st.rerun()
     if c3.button("Save to ML dataset", use_container_width=True, disabled=data["posts"].empty,
                  help="Adds these posts to data/processed/posts.csv so the model learns from your real results."):
@@ -162,6 +293,8 @@ if source:
         st.rerun()
     for err in data["errors"]:
         st.warning(err)
+    render_accounts(merge_accounts(data["accounts"], []))
+    linkedin_editor()
     if data["posts"].empty:
         st.info("Connected, but no posts came back yet.")
     else:
@@ -169,6 +302,8 @@ if source:
 else:
     st.warning("Showing **sample (fake) data**. Connect Buffer (or Facebook & Instagram) to see your live numbers.")
     st.page_link("views/connections.py", label="Go to Connections")
+    render_accounts(merge_accounts([], []))
+    linkedin_editor()
     if POSTS_CSV.exists():
         render_posts(load_sample(POSTS_CSV.stat().st_mtime), [], live=False)
 
