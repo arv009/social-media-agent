@@ -40,7 +40,7 @@ streamlit run app/streamlit_app.py           # the app: dashboard, AI agent, rev
   Instagram connection (Buffer doesn't provide them); LinkedIn doesn't share stats with apps, so you
   upload a screenshot of LinkedIn > Analytics (**Update LinkedIn stats from a screenshot**): Claude reads
   followers, profile viewers, search appearances and post impressions, you confirm, and each upload adds to
-  a follower history chart. `LINKEDIN_FOLLOWERS` in Secrets is a backup that survives restarts.
+  a follower history chart, stored permanently in a Google Sheet (see **Google Sheets setup**).
   **Save to ML dataset** adds those posts to the model's training data. Shows sample data until you connect.
 - **Review queue (two approvals):** **1 · Captions**: edit and approve the caption (or reject with a note
   for the agent) → the graphic is created in your brand style → **2 · Graphics**: change the layout or text
@@ -72,6 +72,25 @@ and Bebas Neue fonts bundled in `assets/fonts`): **cover** (carousel first slide
 
 Buffer's API docs don't confirm every field name yet, so if `buffer_check.py` shows an API error, send it
 over and the query can be adjusted.
+
+## Google Sheets setup (permanent storage)
+
+Streamlit Cloud's disk resets on every restart, so the LinkedIn history is saved in a Google Sheet through a
+Google **service account** (a robot account only this app uses; it never expires).
+
+1. console.cloud.google.com → pick/create a project → **APIs & Services → Library → Google Sheets API → Enable**.
+2. **IAM & Admin → Service Accounts → Create service account** → name it → **Done**.
+3. Open it → **Keys → Add key → Create new key → JSON** (a `.json` file downloads; keep it private).
+4. Create a Google Sheet, click **Share**, add the service account's email (`client_email` in the JSON) as **Editor**.
+5. Secrets:
+   ```toml
+   DATA_SHEET_URL = "https://docs.google.com/spreadsheets/d/..."
+   GOOGLE_SERVICE_ACCOUNT_JSON = '''
+   { ...the whole .json file... }
+   '''
+   ```
+   (A `[gcp_service_account]` section with the JSON's fields works too.) Then **Connections → Google Sheets →
+   Test connection**. The app creates a **LinkedIn** tab and adds one row per day you save.
 
 ## Deploy on Streamlit Community Cloud
 

@@ -1,8 +1,8 @@
 """LinkedIn stats from screenshots of your LinkedIn analytics page.
 
 LinkedIn doesn't share follower counts with apps and has no export right now, so you upload a screenshot
-of Profile > Analytics. Claude reads the numbers, you confirm them, and they're saved by date
-(data/linkedin_stats.json) to build your follower history.
+of Profile > Analytics. Claude reads the numbers, you confirm them, and they're saved by date to build
+your follower history: in the Google Sheet when it's set up (permanent), else data/linkedin_stats.json.
 """
 import base64
 import json
@@ -12,10 +12,14 @@ from pathlib import Path
 import anthropic
 from pydantic import BaseModel, Field
 
+from . import sheets_store
 from .agent import MODEL
 
 STATS_FILE = Path(__file__).resolve().parents[2] / "data" / "linkedin_stats.json"
 FIELDS = ["total_followers", "profile_viewers", "search_appearances", "post_impressions"]
+COLUMNS = ["date", *FIELDS, "followers_change_pct", "profile_viewers_change_pct", "search_appearances_period",
+           "post_impressions_change_pct", "period"]
+TAB = "LinkedIn"
 
 
 class LinkedInSnapshot(BaseModel):
@@ -63,23 +67,41 @@ def read_screenshot(image: bytes, media_type: str = "image/png") -> dict:
 
 # ---------- history ----------
 
+def storage() -> str:
+    return "Google Sheet" if sheets_store.configured() else "this app's disk (resets on restart)"
+
+
 def history() -> list[dict]:
-    try:
-        rows = json.loads(STATS_FILE.read_text())
-    except (FileNotFoundError, ValueError):
-        return []
-    return sorted(rows, key=lambda r: r["date"])
+    if sheets_store.configured():
+        try:
+            rows = sheets_store.read_rows(TAB, COLUMNS)
+        except sheets_store.SheetsError as e:
+            if "Unable to parse range" in str(e):  # the tab doesn't exist yet
+                return []
+            raise
+    else:
+        try:
+            rows = json.loads(STATS_FILE.read_text())
+        except (FileNotFoundError, ValueError):
+            return []
+    return sorted((r for r in rows if r.get("date")), key=lambda r: str(r["date"]))
 
 
 def save(entry: dict, on: date | None = None) -> None:
     """Save one day's numbers (replaces an earlier entry for the same date)."""
     day = (on or date.today()).isoformat()
-    rows = [r for r in history() if r["date"] != day]
-    rows.append({"date": day, **{k: v for k, v in entry.items() if k != "date"}})
+    row = {"date": day, **{k: v for k, v in entry.items() if k in COLUMNS and k != "date"}}
+    if sheets_store.configured():
+        sheets_store.upsert_row(TAB, COLUMNS, "date", row)
+        return
+    rows = [r for r in history() if r["date"] != day] + [row]
     STATS_FILE.parent.mkdir(parents=True, exist_ok=True)
     STATS_FILE.write_text(json.dumps(sorted(rows, key=lambda r: r["date"]), indent=2))
 
 
 def latest() -> dict | None:
-    rows = [r for r in history() if r.get("total_followers") is not None]
+    try:
+        rows = [r for r in history() if r.get("total_followers") is not None]
+    except sheets_store.SheetsError:
+        return None
     return rows[-1] if rows else None

@@ -12,7 +12,7 @@ from ui import PLATFORMS, ROOT, flash, pname, show_flash
 
 import anthropic
 
-from social_agent import buffer_api, linkedin_stats
+from social_agent import buffer_api, linkedin_stats, sheets_store
 from social_agent import connections as cx
 from social_agent.features import TARGET, build_features
 from social_agent.schema import combine
@@ -188,11 +188,19 @@ def linkedin_editor():
                     st.error("Total followers is required.")
                 else:
                     extra = {k: found.get(k) for k in found if k.endswith("_pct") or k.endswith("period")}
-                    linkedin_stats.save({**vals, **extra}, on=day)
-                    st.session_state.pop("li_read", None)
-                    flash(f"LinkedIn stats saved for {day:%b %d}.")
-                    st.rerun()
-        rows = linkedin_stats.history()
+                    try:
+                        linkedin_stats.save({**vals, **extra}, on=day)
+                    except sheets_store.SheetsError as e:
+                        st.error(f"Couldn't save to the Google Sheet: {e}")
+                    else:
+                        st.session_state.pop("li_read", None)
+                        flash(f"LinkedIn stats saved for {day:%b %d} ({linkedin_stats.storage()}).")
+                        st.rerun()
+        try:
+            rows = linkedin_stats.history()
+        except sheets_store.SheetsError as e:
+            st.warning(f"Couldn't read the Google Sheet: {e}")
+            rows = []
         if rows:
             hist = pd.DataFrame(rows)
             hist["date"] = pd.to_datetime(hist["date"])
@@ -210,8 +218,11 @@ def linkedin_editor():
             table = hist[["date"] + [c for c in linkedin_stats.FIELDS if c in hist]].iloc[::-1].rename(columns=names)
             st.dataframe(table, hide_index=True, use_container_width=True,
                          column_config={"date": st.column_config.DateColumn("Date", format="MMM D, YYYY")})
-        st.caption("On Streamlit Cloud, saved history resets when the app restarts. Keep LINKEDIN_FOLLOWERS in "
-                   "Secrets updated as a backup.")
+        if sheets_store.configured():
+            st.caption("Saved permanently in your Google Sheet (LinkedIn tab).")
+        else:
+            st.caption("Saved on this app's disk, which resets when Streamlit restarts. Set up Google Sheets on the "
+                       "Connections page to keep your history.")
 
 
 def render_posts(df: pd.DataFrame, accounts: list[dict], live: bool):

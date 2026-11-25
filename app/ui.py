@@ -1,4 +1,5 @@
 """Shared helpers for the Streamlit pages."""
+import json
 import os
 import sys
 from pathlib import Path
@@ -12,6 +13,29 @@ if str(ROOT / "src") not in sys.path:
 from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(ROOT / ".env")
+
+
+def _export_secrets() -> None:
+    """Make Streamlit Secrets available as environment variables, including keys written under a
+    [section] heading (Streamlit only exports top-level keys). A [gcp_service_account] section becomes
+    GOOGLE_SERVICE_ACCOUNT_JSON. Existing environment variables win."""
+    try:
+        secrets = st.secrets.to_dict()
+    except Exception:  # noqa: BLE001 - no secrets file (e.g. running locally with .env)
+        return
+    for key, value in secrets.items():
+        if isinstance(value, dict):
+            if key.lower() in ("gcp_service_account", "google_service_account"):
+                os.environ.setdefault("GOOGLE_SERVICE_ACCOUNT_JSON", json.dumps(value))
+                continue
+            for k2, v2 in value.items():
+                if not isinstance(v2, dict):
+                    os.environ.setdefault(k2.upper(), str(v2))
+        else:
+            os.environ.setdefault(key, str(value))
+
+
+_export_secrets()
 
 PLATFORMS = ["linkedin", "facebook", "instagram"]
 PLATFORM_NAME = {"linkedin": "LinkedIn", "facebook": "Facebook", "instagram": "Instagram"}

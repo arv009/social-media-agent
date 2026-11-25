@@ -4,7 +4,7 @@ import os
 import streamlit as st
 from ui import base_url, flash, show_flash
 
-from social_agent import buffer_api, image_host
+from social_agent import buffer_api, image_host, sheets_store
 from social_agent import connections as cx
 from social_agent.agent import MODEL, model_name
 
@@ -124,9 +124,40 @@ def cloudinary_card():
             st.code('CLOUDINARY_URL = "cloudinary://API_KEY:API_SECRET@CLOUD_NAME"', language="toml")
 
 
+def sheets_card():
+    ok = sheets_store.configured()
+    with st.container(border=True):
+        st.markdown(f"#### Google Sheets {':green-badge[Set up]' if ok else ':orange-badge[Needs setup]'}")
+        st.caption("Permanent storage for your LinkedIn stats history (Streamlit Cloud's own disk resets on restart).")
+        if ok:
+            email = sheets_store.service_account_email()
+            if email:
+                st.caption(f"Service account: `{email}` (the sheet must be shared with it as Editor)")
+            if st.button("Test connection", key="sheets_test"):
+                try:
+                    st.success(f"Connected to “{sheets_store.test_connection()}”.")
+                except sheets_store.SheetsError as e:
+                    st.error(str(e))
+            return
+        with st.expander("Setup (about 10 minutes)"):
+            st.markdown(
+                "1. Go to **console.cloud.google.com**, pick or create a project, then **APIs & Services → "
+                "Library → Google Sheets API → Enable**.\n"
+                "2. **IAM & Admin → Service Accounts → Create service account**: give it a name (e.g. "
+                "*social-media-agent*), click **Done**.\n"
+                "3. Open it → **Keys → Add key → Create new key → JSON**. A `.json` file downloads. Keep it private.\n"
+                "4. Create a Google Sheet (e.g. *Social Media Agent data*). Click **Share** and add the service "
+                "account's email (`...@...iam.gserviceaccount.com`, it's in the JSON as `client_email`) as **Editor**.\n"
+                "5. Add to the app's **Secrets**: the sheet's link, and the whole JSON file between triple quotes:")
+            st.code('DATA_SHEET_URL = "https://docs.google.com/spreadsheets/d/..."\n'
+                    "GOOGLE_SERVICE_ACCOUNT_JSON = \'\'\'\n{ ...paste the whole .json file here... }\n\'\'\'",
+                    language="toml")
+
+
 st.subheader("Publishing & analytics")
 buffer_card()
 cloudinary_card()
+sheets_card()
 
 st.subheader("Direct connections (optional)")
 st.caption("Buffer covers posting and analytics. Connect these only for extras: Facebook & Instagram for comment "
